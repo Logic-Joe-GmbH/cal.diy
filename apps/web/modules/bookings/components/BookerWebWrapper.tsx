@@ -32,6 +32,9 @@ export type BookerWebWrapperAtomProps = BookerProps & {
   eventData?: NonNullable<Awaited<ReturnType<typeof getPublicEvent>>>;
 };
 
+const isValidHexColor = (value: string | null | undefined): value is string =>
+  !!value && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
+
 const BookerWebWrapperComponent = (props: BookerWebWrapperAtomProps): JSX.Element => {
   const router = useRouter();
   const pathname = usePathname();
@@ -190,9 +193,18 @@ const BookerWebWrapperComponent = (props: BookerWebWrapperAtomProps): JSX.Elemen
     },
     [router]
   );
+  // Allow embeds on customer sites to override the brand colors per placement via URL params
+  // (e.g. Cal embed config -> ?brandColor=%23ff0000). Hex-validated to avoid CSS injection.
+  // Without an override the org/team/user brand color from the event data is used.
+  const brandColorParam = searchParams?.get("brandColor");
+  const darkBrandColorParam = searchParams?.get("darkBrandColor");
   useBrandColors({
-    brandColor: event.data?.profile.brandColor ?? DEFAULT_LIGHT_BRAND_COLOR,
-    darkBrandColor: event.data?.profile.darkBrandColor ?? DEFAULT_DARK_BRAND_COLOR,
+    brandColor:
+      (isValidHexColor(brandColorParam) ? brandColorParam : event.data?.profile.brandColor) ??
+      DEFAULT_LIGHT_BRAND_COLOR,
+    darkBrandColor:
+      (isValidHexColor(darkBrandColorParam) ? darkBrandColorParam : event.data?.profile.darkBrandColor) ??
+      DEFAULT_DARK_BRAND_COLOR,
     theme: event.data?.profile.theme,
   });
 

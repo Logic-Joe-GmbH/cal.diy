@@ -1,6 +1,7 @@
 import { getOrgUsernameFromEmail } from "@calcom/features/auth/signup/utils/getOrgUsernameFromEmail";
 import { DATABASE_CHUNK_SIZE } from "@calcom/lib/constants";
 import logger from "@calcom/lib/logger";
+import { whereClauseForOrgWithSlugOrRequestedSlug } from "@calcom/lib/orgDomains";
 import { safeStringify } from "@calcom/lib/safeStringify";
 import prisma from "@calcom/prisma";
 import type { Prisma, PrismaClient, User as PrismaUser, Team } from "@calcom/prisma/client";
@@ -10,7 +11,6 @@ import type { UpId, UserAsPersonalProfile, UserProfile } from "@calcom/types/Use
 import { v4 as uuidv4 } from "uuid";
 import type { IProfileRepository } from "./IProfileRepository";
 
-const whereClauseForOrgWithSlugOrRequestedSlug = (..._args: unknown[]) => ({});
 const getParsedTeam = <T>(team: T): T => team;
 
 const userSelect = {

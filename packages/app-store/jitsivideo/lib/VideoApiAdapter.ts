@@ -1,11 +1,30 @@
-import { v4 as uuidv4 } from "uuid";
-
 import type { CalendarEvent } from "@calcom/types/Calendar";
+import type { CredentialForCalendarService } from "@calcom/types/Credential";
 import type { PartialReference } from "@calcom/types/EventManager";
 import type { VideoApiAdapter, VideoCallData } from "@calcom/types/VideoApiAdapter";
-
+import { v4 as uuidv4 } from "uuid";
 import getAppKeysFromSlug from "../../_utils/getAppKeysFromSlug";
 import { metadata } from "../_metadata";
+
+/**
+ * Jitsi needs no API key or stored credential — the adapter generates a public
+ * meet.jit.si link. This fake credential lets Jitsi be used as the default video
+ * provider without any per-user installation, mirroring FAKE_DAILY_CREDENTIAL.
+ */
+export const FAKE_JITSI_CREDENTIAL: CredentialForCalendarService & { invalid: boolean } = {
+  id: 0,
+  type: "jitsi_video",
+  key: {},
+  userId: 0,
+  user: { email: "" },
+  appId: "jitsi",
+  invalid: false,
+  teamId: null,
+  encryptedKey: null,
+  delegatedToId: null,
+  delegatedTo: null,
+  delegationCredentialId: null,
+};
 
 const JitsiVideoApiAdapter = (): VideoApiAdapter => {
   return {

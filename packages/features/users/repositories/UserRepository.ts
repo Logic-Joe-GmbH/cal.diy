@@ -3,14 +3,14 @@ import { getTranslation } from "@calcom/i18n/server";
 import { DEFAULT_SCHEDULE, getAvailabilityFromSchedule } from "@calcom/lib/availability";
 import { buildNonDelegationCredentials } from "@calcom/lib/delegationCredential";
 import logger from "@calcom/lib/logger";
+import { whereClauseForOrgWithSlugOrRequestedSlug } from "@calcom/lib/orgDomains";
 import { safeStringify } from "@calcom/lib/safeStringify";
 import { withSelectedCalendars } from "@calcom/lib/server/withSelectedCalendars";
 import type { PrismaClient } from "@calcom/prisma";
 import { availabilityUserSelect } from "@calcom/prisma";
 import type { DestinationCalendar, SelectedCalendar, User as UserType } from "@calcom/prisma/client";
 import { Prisma } from "@calcom/prisma/client";
-import type { IdentityProvider } from "@calcom/prisma/enums";
-import type { CreationSource } from "@calcom/prisma/enums";
+import type { CreationSource, IdentityProvider } from "@calcom/prisma/enums";
 import { BookingStatus, MembershipRole } from "@calcom/prisma/enums";
 import { credentialForCalendarServiceSelect } from "@calcom/prisma/selects/credential";
 import { userSelect as prismaUserSelect } from "@calcom/prisma/selects/user";
@@ -18,7 +18,6 @@ import { userMetadata } from "@calcom/prisma/zod-utils";
 import type { UpId, UserProfile } from "@calcom/types/UserProfile";
 import type { z } from "zod";
 
-const whereClauseForOrgWithSlugOrRequestedSlug = (..._args: unknown[]) => ({});
 const getParsedTeam = <T>(team: T): T => team;
 
 export type { UserWithLegacySelectedCalendars } from "@calcom/lib/server/withSelectedCalendars";
@@ -1419,7 +1418,7 @@ export class UserRepository {
     });
   }
 
-  async deleteMany({ userIds }: {userIds: number[]}){
+  async deleteMany({ userIds }: { userIds: number[] }) {
     await this.prismaClient.user.deleteMany({
       where: {
         id: { in: userIds },
@@ -1488,15 +1487,15 @@ export class UserRepository {
     });
   }
 
-  async findByEmailWithInvitedTo({ email }: { email: string } ) {
+  async findByEmailWithInvitedTo({ email }: { email: string }) {
     return this.prismaClient.user.findUnique({
       where: {
-        email: email.toLowerCase()
+        email: email.toLowerCase(),
       },
       select: {
-        invitedTo: true
-      }
-    })
+        invitedTo: true,
+      },
+    });
   }
 
   async findByUsernameAndOrganizationId({
@@ -1504,20 +1503,20 @@ export class UserRepository {
     organizationId,
     excludeEmail,
   }: {
-    username: string,
-    organizationId: number | null,
-    excludeEmail: string
+    username: string;
+    organizationId: number | null;
+    excludeEmail: string;
   }) {
     return this.prismaClient.user.findFirst({
       where: {
         username,
         organizationId,
-        NOT: { email: excludeEmail }
+        NOT: { email: excludeEmail },
       },
       select: {
-        id: true
-      }
-    })
+        id: true,
+      },
+    });
   }
 
   async lockByEmail({ email }: { email: string }) {

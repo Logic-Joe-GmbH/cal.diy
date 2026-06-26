@@ -1,16 +1,10 @@
+import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
+import { meRouter } from "@calcom/trpc/server/routers/viewer/me/_router";
+import { buildLegacyRequest } from "@lib/buildLegacyCtx";
 import { createRouterCaller } from "app/_trpc/context";
 import { _generateMetadata } from "app/_utils";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-
-import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
-import { IS_SELF_HOSTED } from "@calcom/lib/constants";
-import hasKeyInMetadata from "@calcom/lib/hasKeyInMetadata";
-import { meRouter } from "@calcom/trpc/server/routers/viewer/me/_router";
-import { getCachedHasTeamPlan } from "@calcom/web/app/cache/membership";
-
-import { buildLegacyRequest } from "@lib/buildLegacyCtx";
-
 import AppearancePage from "~/settings/my-account/appearance-view";
 
 export const generateMetadata = async () =>
@@ -31,19 +25,16 @@ const Page = async () => {
     redirect(redirectUrl);
   }
 
-  const [meCaller, hasTeamPlan] = await Promise.all([
-    createRouterCaller(meRouter),
-    getCachedHasTeamPlan(userId),
-  ]);
+  const meCaller = await createRouterCaller(meRouter);
 
   const user = await meCaller.get();
 
   if (!user) {
     redirect(redirectUrl);
   }
-  const isCurrentUsernamePremium =
-    user && hasKeyInMetadata(user, "isPremium") ? !!user.metadata.isPremium : false;
-  const hasPaidPlan = IS_SELF_HOSTED ? true : hasTeamPlan?.hasTeamPlan || isCurrentUsernamePremium;
+
+  // Branding is free on cal.diy — no paid-plan gating.
+  const hasPaidPlan = true;
 
   return <AppearancePage user={user} hasPaidPlan={hasPaidPlan} />;
 };

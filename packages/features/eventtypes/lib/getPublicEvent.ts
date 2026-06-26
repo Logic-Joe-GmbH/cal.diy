@@ -11,6 +11,7 @@ import { getOrgOrTeamAvatar, getPlaceholderAvatar } from "@calcom/lib/defaultAva
 import { getUserAvatarUrl } from "@calcom/lib/getAvatarUrl";
 import { isRecurringEvent, parseRecurringEvent } from "@calcom/lib/isRecurringEvent";
 import { markdownToSafeHTML } from "@calcom/lib/markdownToSafeHTML";
+import { getSlugOrRequestedSlug } from "@calcom/lib/orgDomains";
 import type { PrismaClient } from "@calcom/prisma";
 import type { Prisma, Team, User as UserType } from "@calcom/prisma/client";
 import { MembershipRole } from "@calcom/prisma/enums";
@@ -37,7 +38,6 @@ class PermissionCheckService {
     return [];
   }
 }
-const getSlugOrRequestedSlug = (slug: string) => ({ slug });
 const getBookerBaseUrlSync = (_orgSlug?: string | number | null): string =>
   process.env.NEXT_PUBLIC_WEBAPP_URL || "https://app.cal.com";
 

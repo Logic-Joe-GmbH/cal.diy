@@ -6,13 +6,12 @@ import {
 import { UserRepository, withSelectedCalendars } from "@calcom/features/users/repositories/UserRepository";
 import { HttpError } from "@calcom/lib/http-error";
 import logger from "@calcom/lib/logger";
+import { getOrgDomainConfig } from "@calcom/lib/orgDomains";
 import { safeStringify } from "@calcom/lib/safeStringify";
 import prisma, { userSelect } from "@calcom/prisma";
 import { Prisma } from "@calcom/prisma/client";
 import { credentialForCalendarServiceSelect } from "@calcom/prisma/selects/credential";
 import type { NewBookingEventType } from "./getEventTypesFromDB";
-
-const getOrgDomainConfig = (..._args: unknown[]) => ({ currentOrgDomain: null as string | null, isValidOrgDomain: false });
 
 const log = logger.getSubLogger({ prefix: ["[loadUsers]:handleNewBooking "] });
 

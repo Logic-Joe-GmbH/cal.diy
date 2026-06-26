@@ -6,6 +6,7 @@ import type { getPublicEvent } from "@calcom/features/eventtypes/lib/getPublicEv
 import { EventRepository } from "@calcom/features/eventtypes/repositories/EventRepository";
 import { shouldHideBrandingForUserEvent } from "@calcom/features/profile/lib/hideBranding";
 import { UserRepository } from "@calcom/features/users/repositories/UserRepository";
+import { orgDomainConfig } from "@calcom/lib/orgDomains";
 import slugify from "@calcom/lib/slugify";
 import { prisma } from "@calcom/prisma";
 import { BookingStatus, RedirectType } from "@calcom/prisma/enums";
@@ -15,7 +16,7 @@ import type { GetServerSidePropsContext } from "next";
 import type { Session } from "next-auth";
 import { z } from "zod";
 
-type Props = {
+export type Props = {
   eventData: NonNullable<Awaited<ReturnType<typeof getPublicEvent>>>;
   booking?: GetBookingType;
   rescheduleUid: string | null;
@@ -28,7 +29,7 @@ type Props = {
   orgBannerUrl: null;
 };
 
-async function processReschedule({
+export async function processReschedule({
   props,
   rescheduleUid,
   session,
@@ -87,7 +88,7 @@ async function processReschedule({
   };
 }
 
-async function processSeatedEvent({
+export async function processSeatedEvent({
   props,
   bookingUid,
   allowRescheduleForCancelledBooking,
@@ -116,8 +117,7 @@ async function getDynamicGroupPageProps(context: GetServerSidePropsContext) {
   const { user: usernames, type: slug } = paramsSchema.parse(context.params);
   const { rescheduleUid, bookingUid } = context.query;
   const allowRescheduleForCancelledBooking = context.query.allowRescheduleForCancelledBooking === "true";
-  const currentOrgDomain = null;
-  const isValidOrgDomain = false;
+  const { currentOrgDomain, isValidOrgDomain } = orgDomainConfig(context.req, context.params?.orgSlug);
   const org = isValidOrgDomain ? currentOrgDomain : null;
 
   const redirect = await handleOrgRedirect({
@@ -215,8 +215,7 @@ async function getUserPageProps(context: GetServerSidePropsContext) {
   const username = usernames[0];
   const { rescheduleUid, bookingUid } = context.query;
   const allowRescheduleForCancelledBooking = context.query.allowRescheduleForCancelledBooking === "true";
-  const currentOrgDomain = null;
-  const isValidOrgDomain = false;
+  const { currentOrgDomain, isValidOrgDomain } = orgDomainConfig(context.req, context.params?.orgSlug);
 
   const redirect = await handleOrgRedirect({
     slugs: usernames,

@@ -1,3 +1,4 @@
+import { DEFAULT_SCHEDULE, getAvailabilityFromSchedule } from "@calcom/lib/availability";
 import { hasReadPermissionsForUserId } from "@calcom/lib/hasEditPermissionForUser";
 import {
   transformAvailabilityForAtom,
@@ -257,5 +258,35 @@ export class ScheduleRepository {
         defaultScheduleId: scheduleId,
       },
     });
+  }
+
+  async createDefaultSchedule({
+    userId,
+    name,
+    timeZone,
+  }: {
+    userId: number;
+    name: string;
+    timeZone?: string | null;
+  }) {
+    const availability = getAvailabilityFromSchedule(DEFAULT_SCHEDULE);
+    const schedule = await this.prismaClient.schedule.create({
+      data: {
+        userId,
+        name,
+        ...(timeZone ? { timeZone } : {}),
+        availability: {
+          createMany: {
+            data: availability.map((a) => ({
+              days: a.days,
+              startTime: a.startTime,
+              endTime: a.endTime,
+            })),
+          },
+        },
+      },
+    });
+    await this.setupDefaultSchedule(userId, schedule.id);
+    return schedule;
   }
 }

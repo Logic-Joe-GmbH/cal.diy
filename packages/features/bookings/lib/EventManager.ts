@@ -1,14 +1,12 @@
-import { cloneDeep, merge } from "lodash";
-import { v5 as uuidv5 } from "uuid";
-import type { z } from "zod";
-
+import process from "node:process";
 import { getCalendar } from "@calcom/app-store/_utils/getCalendar";
 import { FAKE_DAILY_CREDENTIAL } from "@calcom/app-store/dailyvideo/lib/VideoApiAdapter";
 import { appKeysSchema as calVideoKeysSchema } from "@calcom/app-store/dailyvideo/zod";
+import { FAKE_JITSI_CREDENTIAL } from "@calcom/app-store/jitsivideo/lib/VideoApiAdapter";
 import { getLocationFromApp, MeetLocationType, MSTeamsLocationType } from "@calcom/app-store/locations";
 import getApps from "@calcom/app-store/utils";
-import { createEvent, updateEvent, deleteEvent } from "@calcom/features/calendars/lib/CalendarManager";
-import { createMeeting, updateMeeting, deleteMeeting } from "@calcom/features/conferencing/lib/videoClient";
+import { createEvent, deleteEvent, updateEvent } from "@calcom/features/calendars/lib/CalendarManager";
+import { createMeeting, deleteMeeting, updateMeeting } from "@calcom/features/conferencing/lib/videoClient";
 import { CredentialRepository } from "@calcom/features/credentials/repositories/CredentialRepository";
 import CrmManager from "@calcom/features/crmManager/crmManager";
 import CRMScheduler from "@calcom/features/crmManager/crmScheduler";
@@ -18,14 +16,14 @@ import { symmetricDecrypt } from "@calcom/lib/crypto";
 import { isDelegationCredential } from "@calcom/lib/delegationCredential";
 import logger from "@calcom/lib/logger";
 import {
+  getPiiFreeCalendarEvent,
+  getPiiFreeCredential,
   getPiiFreeDestinationCalendar,
   getPiiFreeUser,
-  getPiiFreeCredential,
-  getPiiFreeCalendarEvent,
 } from "@calcom/lib/piiFreeData";
 import { safeStringify } from "@calcom/lib/safeStringify";
 import { prisma } from "@calcom/prisma";
-import type { DestinationCalendar, BookingReference } from "@calcom/prisma/client";
+import type { BookingReference, DestinationCalendar } from "@calcom/prisma/client";
 import { createdEventSchema } from "@calcom/prisma/zod-utils";
 import type { AdditionalInformation, CalendarEvent, NewCalendarEventType } from "@calcom/types/Calendar";
 import type { CredentialForCalendarService } from "@calcom/types/Credential";
@@ -36,6 +34,9 @@ import type {
   PartialBooking,
   PartialReference,
 } from "@calcom/types/EventManager";
+import { cloneDeep, merge } from "lodash";
+import { v5 as uuidv5 } from "uuid";
+import type { z } from "zod";
 
 const log = logger.getSubLogger({ prefix: ["EventManager"] });
 const CALENDSO_ENCRYPTION_KEY = process.env.CALENDSO_ENCRYPTION_KEY || "";
@@ -292,23 +293,10 @@ export default class EventManager {
     // TODO this method shouldn't be modifying the event object that's passed in
     const evt = processLocation(event);
 
-    // Fallback to cal video if no location is set
+    // Fallback to the default video provider if no location is set.
     if (!evt.location) {
-      // See if cal video is enabled & has keys
-      const calVideo = await prisma.app.findUnique({
-        where: {
-          slug: "daily-video",
-        },
-        select: {
-          keys: true,
-          enabled: true,
-        },
-      });
-
-      const calVideoKeys = calVideoKeysSchema.safeParse(calVideo?.keys);
-
-      if (calVideo?.enabled && calVideoKeys.success) evt["location"] = "integrations:daily";
-      log.warn("Falling back to cal video as no location is set");
+      evt["location"] = await this.getFallbackVideoLocation();
+      log.warn(`Falling back to ${evt.location} as no location is set`);
     }
 
     const [mainHostDestinationCalendar] =
@@ -322,10 +310,10 @@ export default class EventManager {
       // Delegation Credential case won't normally have DestinationCalendar set and thus fallback of using Google Calendar credential would be used. Identify that case.
       // TODO: We could extend this logic to Regular Credentials also. Having a Google Calendar credential would cause fallback to use that credential to create calendar and thus we could have Google Meet link
       if (!isDelegationCredential({ credentialId: googleCalendarCredential?.id })) {
+        evt["location"] = await this.getFallbackVideoLocation();
         log.warn(
-          "Falling back to Cal Video integration for Regular Credential as Google Calendar is not set as destination calendar"
+          `Falling back to ${evt.location} as Google Calendar is not set as destination calendar for a Regular Credential`
         );
-        evt["location"] = "integrations:daily";
         evt["conferenceCredentialId"] = undefined;
       }
     }
@@ -1033,6 +1021,20 @@ export default class EventManager {
    * @private
    */
 
+  /**
+   * Cal Video (Daily) needs a paid API key. When it isn't configured we fall back to
+   * Jitsi, which is free and requires no credentials, so self-hosted instances get a
+   * working video link out of the box.
+   */
+  private async getFallbackVideoLocation(): Promise<string> {
+    const calVideo = await prisma.app.findUnique({
+      where: { slug: "daily-video" },
+      select: { keys: true, enabled: true },
+    });
+    const calVideoKeys = calVideoKeysSchema.safeParse(calVideo?.keys);
+    return calVideo?.enabled && calVideoKeys.success ? "integrations:daily" : "integrations:jitsi";
+  }
+
   private getVideoCredentialByCalendarEvent(event: CalendarEvent): CredentialForCalendarService | undefined {
     if (!event.location) {
       return undefined;
@@ -1059,10 +1061,15 @@ export default class EventManager {
      * @todo remove location from event types that has missing credentials
      * */
     if (!videoCredential) {
+      // The location's app has no stored credential, so use a built-in fake credential to
+      // still create the meeting. Jitsi needs no key; Cal Video (Daily) uses the global key.
+      const isJitsi = integrationName.includes("jitsi");
       log.warn(
-        `Falling back to "daily" video integration for event with location: ${event.location} because credential is missing for the app`
+        `Falling back to "${
+          isJitsi ? "jitsi" : "daily"
+        }" video integration for event with location: ${event.location} because credential is missing for the app`
       );
-      videoCredential = { ...FAKE_DAILY_CREDENTIAL };
+      videoCredential = isJitsi ? { ...FAKE_JITSI_CREDENTIAL } : { ...FAKE_DAILY_CREDENTIAL };
     }
 
     return videoCredential;
@@ -1102,8 +1109,7 @@ export default class EventManager {
     booking: PartialBooking,
     newBookingId?: number
   ): Promise<Array<EventResult<NewCalendarEventType>>> {
-    let calendarReference: PartialReference[] | undefined = undefined,
-      credential;
+    let calendarReference: PartialReference[] | undefined, credential;
     log.silly("updateAllCalendarEvents", JSON.stringify({ event, booking, newBookingId }));
     try {
       // If a newBookingId is given, update that calendar event

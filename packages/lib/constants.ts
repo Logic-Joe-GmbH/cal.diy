@@ -3,6 +3,7 @@
  * prepends https:// to make it valid for URL parsing.
  * This handles cases where environment variables have their protocol stripped
  */
+import process from "node:process";
 function ensureProtocol(url: string | undefined): string {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
@@ -126,11 +127,10 @@ export const IS_STRIPE_ENABLED = !!(
   process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY &&
   process.env.STRIPE_PRIVATE_KEY
 );
-/** This has correct value only server side. When you want to use client side, go for IS_TEAM_BILLING_ENABLED_CLIENT. I think we should use the _CLIENT one only everywhere so that it works reliably everywhere on client as well as server  */
-export const IS_TEAM_BILLING_ENABLED = !!(IS_STRIPE_ENABLED && HOSTED_CAL_FEATURES);
+// cal.diy is our internal/SaaS tool — team & org billing is fully disabled, no paywalls.
+export const IS_TEAM_BILLING_ENABLED: boolean = false;
 
-export const IS_TEAM_BILLING_ENABLED_CLIENT =
-  !!process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY && HOSTED_CAL_FEATURES;
+export const IS_TEAM_BILLING_ENABLED_CLIENT: boolean = false;
 
 export const FULL_NAME_LENGTH_MAX_LIMIT = 50;
 export const API_NAME_LENGTH_MAX_LIMIT = 80;
@@ -164,9 +164,8 @@ export const DEFAULT_DARK_BRAND_COLOR = "#fafafa";
 
 export const TOP_BANNER_HEIGHT = 40;
 
-export const IS_PREMIUM_USERNAME_ENABLED =
-  (IS_CALCOM || (process.env.NEXT_PUBLIC_IS_E2E && IS_STRIPE_ENABLED)) &&
-  process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PLAN_PRICE_MONTHLY;
+// No premium/paid usernames — every username is free on our instance.
+export const IS_PREMIUM_USERNAME_ENABLED: boolean = false;
 
 // Max number of invites to join a team/org that can be sent at once
 export const MAX_NB_INVITES = 100;

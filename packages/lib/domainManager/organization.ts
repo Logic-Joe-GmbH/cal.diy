@@ -1,5 +1,6 @@
 import process from "node:process";
 import logger from "@calcom/lib/logger";
+import { subdomainSuffix } from "@calcom/lib/orgDomains";
 import { addDnsRecord, deleteDnsRecord } from "./deploymentServices/cloudflare";
 import {
   createDomain as createVercelDomain,
